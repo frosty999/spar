@@ -10,7 +10,7 @@ from actionlib_msgs.msg import GoalStatus
 from geometry_msgs.msg import Point, PoseStamped
 from std_msgs.msg import String
 from spar_msgs.msg import FlightMotionAction, FlightMotionGoal
-
+from std_msgs.msg import Bool
 
 # This is getting a bit more complicated now, so we'll put our information in
 # a class to keep track of all of our variables. This is not so much different
@@ -252,11 +252,12 @@ class Guidance():
 					self.send_wp(self.waypoints[self.waypoint_counter])
 					# Increment our waypoint counter
 					self.waypoint_counter += 1
-					if self.waypoint_counter == 4:
+					if self.waypoint_counter == 2:
 						rospy.loginfo("Hover for payload drop!")
-						rospy.sleep(rospy.Duration(10))
+						rospy.sleep(rospy.Duration(5))
 						actuator_publisher = rospy.Publisher("~actuator_control/actuator_a", Bool, queue_size = 5)
-						actuator_publisher.publish(True)
+						actuator_publisher.publish(Bool(True)) # Not publishing
+						rospy.loginfo("Payload dropped")
 						rospy.sleep(rospy.Duration(5))
 						#roi_publisher = rospy.Publisher("~roi", PoseStamped, queue_size=5)
 						roi = PoseStamped()

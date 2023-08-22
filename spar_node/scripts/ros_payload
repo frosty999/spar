@@ -59,8 +59,8 @@ if __name__ == '__main__':
     #GPIO.setup(chan_list, GPIO.OUT)
 
 	# Setup the publisher for a single actuator (use additional subscribers for extra actuators)
-	sub_a = rospy.Subscriber('/actuator_control/actuator_a', Bool, callback_a)
-	sub_b = rospy.Subscriber('/actuator_control/actuator_b', Bool, callback_b)
+	sub_a = rospy.Subscriber('/guidance/actuator_control/actuator_a', Bool, callback_a)
+	sub_b = rospy.Subscriber('/guidance/actuator_control/actuator_b', Bool, callback_b)
 
 	# Make sure we clean up all our code before exiting
 	rospy.on_shutdown(shutdown)
