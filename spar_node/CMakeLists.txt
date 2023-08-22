@@ -173,6 +173,7 @@ catkin_install_python(PROGRAMS
   scripts/goto
   scripts/takeoff
   scripts/land
+  scripts/ros_payload
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
