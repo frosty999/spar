@@ -262,7 +262,7 @@ class Guidance():
 					if self.waypoint_counter == 2:
 						rospy.loginfo("Hover for payload drop!")
 						rospy.sleep(rospy.Duration(5))
-						actuator_1_pub.publish(Bool(True)) # Not publishing
+						actuator_1_publisher.publish(Bool(True))
 						rospy.loginfo("Payload dropped")
 						rospy.sleep(rospy.Duration(5))
 						roi = PoseStamped()
