@@ -18,9 +18,7 @@ from std_msgs.msg import Bool
 # within itself.
 # i.e. it will have it's own publishers, subscribers, etc., that
 # will call it's own functions as callbacks, etc.
-actuator_1_publisher = None
-actuator_2_publisher = None
-roi_publisher = None
+
 class Guidance():
 	def __init__(self, waypoints):
 		# Make sure we have a valid waypoint list
@@ -37,9 +35,9 @@ class Guidance():
 		self.performing_roi = False
 
 		# Initialize publishers
-		actuator_1_publisher = rospy.Publisher('actuator_1', Bool, queue_size=10)
-		actuator_2_publisher = rospy.Publisher('actuator_2', Bool, queue_size=10)
-		roi_publisher = rospy.Publisher("~roi", PoseStamped, queue_size=5)
+		self.actuator_1_publisher = rospy.Publisher('actuator_control/actuator_a', Bool, queue_size=10)
+		self.actuator_2_publisher = rospy.Publisher('actuator_control/actuator_b', Bool, queue_size=10)
+		self.roi_publisher = rospy.Publisher("~roi", PoseStamped, queue_size=5)
 		# Save the input waypoints
 		self.waypoints = waypoints
 
@@ -262,7 +260,7 @@ class Guidance():
 					if self.waypoint_counter == 2:
 						rospy.loginfo("Hover for payload drop!")
 						rospy.sleep(rospy.Duration(5))
-						actuator_1_publisher.publish(Bool(True))
+						self.actuator_1_publisher.publish(Bool(True))
 						rospy.loginfo("Payload dropped")
 						rospy.sleep(rospy.Duration(5))
 						roi = PoseStamped()
@@ -279,6 +277,8 @@ class Guidance():
 						roi.pose.orientation.y = 0.0
 						roi.pose.orientation.z = 2.0
 						roi.pose.orientation.w = 1.0
+
+						self.roi_publisher.publish(roi)
 				else:
 					# Else the mission is over, shutdown and quit the node
 					# XXX:	This could be used to restart the mission back to the
