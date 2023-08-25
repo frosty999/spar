@@ -177,10 +177,11 @@ class Guidance():
 
 		rospy.loginfo("Reached diversion ROI!")
 		# Code to release payload.
-		rospy.sleep(rospy.Duration(10))
-		# actuator_1_pub.publish(True)
-
-
+		rospy.loginfo("Hover for payload drop!")
+		rospy.sleep(rospy.Duration(5))
+		self.actuator_1_publisher.publish(Bool(True))
+		rospy.loginfo("Payload dropped")
+		rospy.sleep(rospy.Duration(5))
 
 		rospy.loginfo("Returning to flight plan...")
 
@@ -258,11 +259,6 @@ class Guidance():
 					# Increment our waypoint counter
 					self.waypoint_counter += 1
 					if self.waypoint_counter == 2:
-						rospy.loginfo("Hover for payload drop!")
-						rospy.sleep(rospy.Duration(5))
-						self.actuator_1_publisher.publish(Bool(True))
-						rospy.loginfo("Payload dropped")
-						rospy.sleep(rospy.Duration(5))
 						roi = PoseStamped()
 
 						roi.header.seq = 1
