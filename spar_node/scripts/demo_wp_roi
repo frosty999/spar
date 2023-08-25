@@ -35,13 +35,8 @@ class Guidance():
 		self.performing_roi = False
 
 		# Initialize publishers
-<<<<<<< HEAD
 		self.actuator_a_publisher = rospy.Publisher('actuator_control/actuator_a', Bool, queue_size=10)
 		self.actuator_b_publisher = rospy.Publisher('actuator_control/actuator_b', Bool, queue_size=10)
-=======
-		self.actuator_1_publisher = rospy.Publisher('actuator_control/actuator_a', Bool, queue_size=10)
-		self.actuator_2_publisher = rospy.Publisher('actuator_control/actuator_b', Bool, queue_size=10)
->>>>>>> 07f655cefbcd4a347f99a867d9a6240a6e540482
 		self.roi_publisher = rospy.Publisher("~roi", PoseStamped, queue_size=5)
 		# Save the input waypoints
 		self.waypoints = waypoints
@@ -184,7 +179,6 @@ class Guidance():
 		# Code to release payload.
 		rospy.loginfo("Hover for payload drop!")
 		rospy.sleep(rospy.Duration(5))
-<<<<<<< HEAD
 		if(msg_in.header.frame_id == "bag"):
 			self.actuator_a_publisher.publish(Bool(True))
 			rospy.loginfo("Epipen Payload dropped!")
@@ -192,10 +186,6 @@ class Guidance():
 			self.actuator_b_publisher.publish(Bool(True))
 			rospy.loginfo("Tracker Payload dropped!")
 
-=======
-		self.actuator_1_publisher.publish(Bool(True))
-		rospy.loginfo("Payload dropped")
->>>>>>> 07f655cefbcd4a347f99a867d9a6240a6e540482
 		rospy.sleep(rospy.Duration(5))
 
 		rospy.loginfo("Returning to flight plan...")
@@ -272,22 +262,32 @@ class Guidance():
 					self.send_wp(self.waypoints[self.waypoint_counter])
 					# Increment our waypoint counter
 					self.waypoint_counter += 1
-					if self.waypoint_counter == 2:
+					if self.waypoint_counter == 4:
 						roi = PoseStamped()
 						roi.header.seq = 1
 						roi.header.stamp = rospy.Time.now()
-						roi.header.frame_id = "map"
-
+						roi.header.frame_id = "bag"
 						roi.pose.position.x = 0.0
 						roi.pose.position.y = 0.0
 						roi.pose.position.z = 0.5
-
 						roi.pose.orientation.x = 0.0
 						roi.pose.orientation.y = 0.0
 						roi.pose.orientation.z = 0.0
 						roi.pose.orientation.w = 1.0
 						self.roi_publisher.publish(roi)
 
+					if self.waypoint_counter == 6:
+						roi = PoseStamped()
+						roi.header.seq = 1
+						roi.header.stamp = rospy.Time.now()
+						roi.header.frame_id = "Person"
+						roi.pose.position.x = 0.0
+						roi.pose.position.y = 0.0
+						roi.pose.position.z = 0.5
+						roi.pose.orientation.x = 0.0
+						roi.pose.orientation.y = 0.0
+						roi.pose.orientation.z = 0.0
+						roi.pose.orientation.w = 1.0
 						self.roi_publisher.publish(roi)
 				else:
 					# Else the mission is over, shutdown and quit the node
