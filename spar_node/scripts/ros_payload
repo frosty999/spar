@@ -18,25 +18,25 @@ def callback_a(msg_in):
 	# http://docs.ros.org/melodic/api/std_msgs/html/msg/Bool.html
 	# XXX: The following "GPIO.output" should be replaced to meet the needs of your actuators!
 	if msg_in.data:
-		rospy.loginfo("Setting output high!")
+		rospy.loginfo("Setting 'A' motor output high!")
 		#servo_a.angle = 90
 		#sleep(2)
 		#servo_a.angle = -90
 		#GPIO.output(chan_list, GPIO.HIGH)
 		
 	else:
-		rospy.loginfo("Setting output low!")
+		rospy.loginfo("Setting 'A' motor output low!")
 		#GPIO.output(chan_list, GPIO.LOW)
 
 def callback_b(msg_in):
 	if msg_in.data:
-		rospy.loginfo("Setting output high!")
+		rospy.loginfo("Setting 'B' motor output high!")
 		##GPIO.output(chan_list, GPIO.HIGH)
 		#servo_b.angle = 90
 		#sleep(2)
 		#servo_b.angle = -90
 	else:
-		rospy.loginfo("Setting output low!")
+		rospy.loginfo("Setting 'B' motor output low!")
 		#GPIO.output(chan_list, GPIO.LOW)
 
 def shutdown():

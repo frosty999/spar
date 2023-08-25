@@ -33,6 +33,10 @@ class Guidance():
 		# during the roi diversion and taking over our flight!
 		self.performing_roi = False
 
+		# Initialize publishers
+		self.actuator_a_publisher = rospy.Publisher('actuator_control/actuator_a', Bool, queue_size=10)
+		self.actuator_b_publisher = rospy.Publisher('actuator_control/actuator_b', Bool, queue_size=10)
+		self.roi_publisher = rospy.Publisher("~roi", PoseStamped, queue_size=5)
 		# Save the input waypoints
 		self.waypoints = waypoints
 
@@ -157,7 +161,7 @@ class Guidance():
 		#		the pose to maintain that throughout a diversion
 
 		# Set the "diversion waypoint" (at yaw zero)
-		dwp = [msg_in.pose.position.x, msg_in.pose.position.y, msg_in.pose.position.z, 0.0]
+		dwp = [msg_in.pose.position.x, msg_in.pose.position.y, 0.5, 0.0]
 		# Set the "return waypoint" (at yaw zero)
 		rwp = [self.current_location.x, self.current_location.y, self.current_location.z, 0.0]
 
@@ -172,13 +176,18 @@ class Guidance():
 
 		rospy.loginfo("Reached diversion ROI!")
 		# Code to release payload.
-		rospy.sleep(rospy.Duration(10))
-		# actuator_1_pub.publish(True)
+		rospy.loginfo("Hover for payload drop!")
+		rospy.sleep(rospy.Duration(5))
+		if(msg_in.header.frame_id == "bag"):
+			self.actuator_a_publisher.publish(Bool(True))
+			rospy.loginfo("Epipen Payload dropped!")
+		else:
+			self.actuator_b_publisher.publish(Bool(True))
+			rospy.loginfo("Tracker Payload dropped!")
 
-
+		rospy.sleep(rospy.Duration(5))
 
 		rospy.loginfo("Returning to flight plan...")
-
 		self.send_wp(rwp)
 		self.spar_client.wait_for_result()
 		if self.spar_client.get_state() != GoalStatus.SUCCEEDED:
@@ -252,31 +261,33 @@ class Guidance():
 					self.send_wp(self.waypoints[self.waypoint_counter])
 					# Increment our waypoint counter
 					self.waypoint_counter += 1
-					if self.waypoint_counter == 2:
-						rospy.loginfo("Hover for payload drop!")
-						rospy.sleep(rospy.Duration(5))
-						actuator_publisher = rospy.Publisher("~actuator_control/actuator_a", Bool, queue_size = 5)
-						actuator_publisher.publish(Bool(True)) # Not publishing
-						rospy.loginfo("Payload dropped")
-						rospy.sleep(rospy.Duration(5))
-						#roi_publisher = rospy.Publisher("~roi", PoseStamped, queue_size=5)
+					if self.waypoint_counter == 4:
 						roi = PoseStamped()
-
 						roi.header.seq = 1
 						roi.header.stamp = rospy.Time.now()
-						roi.header.frame_id = "map"
-
-						roi.pose.position.x = 1.0
-						roi.pose.position.y = 2.0
-						roi.pose.position.z = 0.0
-
+						roi.header.frame_id = "bag"
+						roi.pose.position.x = 0.0
+						roi.pose.position.y = 0.0
+						roi.pose.position.z = 0.5
 						roi.pose.orientation.x = 0.0
 						roi.pose.orientation.y = 0.0
 						roi.pose.orientation.z = 2.0
 						roi.pose.orientation.w = 1.0
+						self.roi_publisher.publish(roi)
 
-						#roi_publisher = rospy.Publisher("~hello", String, queue_size=5)	
-						#roi_publisher.publish("Published")
+					if self.waypoint_counter == 6:
+						roi = PoseStamped()
+						roi.header.seq = 1
+						roi.header.stamp = rospy.Time.now()
+						roi.header.frame_id = "Person"
+						roi.pose.position.x = 0.0
+						roi.pose.position.y = 0.0
+						roi.pose.position.z = 0.5
+						roi.pose.orientation.x = 0.0
+						roi.pose.orientation.y = 0.0
+						roi.pose.orientation.z = 0.0
+						roi.pose.orientation.w = 1.0
+						self.roi_publisher.publish(roi)
 				else:
 					# Else the mission is over, shutdown and quit the node
 					# XXX:	This could be used to restart the mission back to the
@@ -297,7 +308,6 @@ def main(args):
 	# Initialise ROS Node
 	rospy.init_node('guidance')
 
-	flight_height = 2.0
 	# List of waypoints
 	# [X, Y, Z, Yaw]
 	wps = [[ -1.0, -1.0, flight_height, 0.0],
