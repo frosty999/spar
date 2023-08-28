@@ -174,6 +174,7 @@ catkin_install_python(PROGRAMS
   scripts/takeoff
   scripts/land
   scripts/ros_payload
+  scripts/week8demo
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
