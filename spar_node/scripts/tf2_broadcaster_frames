@@ -11,7 +11,7 @@ from geometry_msgs.msg import PoseStamped, TransformStamped
 tfbr = None
 tfsbr = None
 
-uav_name = "emulated_uav"
+uav_name = "UAVTeam3"
 camera_name = "camera"
 
 def send_tf_camera():
