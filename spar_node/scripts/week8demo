@@ -347,7 +347,7 @@ class Guidance():
 		# No other information is used
 
 		# Send the goal
-		rospy.loginfo("Sending goal motion...")
+		rospy.loginfo("Starting landing")
 		self.spar_client.send_goal(goal)
 		# If shutdown is issued, cancel current mission before rospy is shutdown
 		rospy.on_shutdown(lambda : self.spar_client.cancel_goal())
