@@ -37,7 +37,7 @@ class Guidance():
 		# Initialize publishers
 		self.actuator_a_publisher = rospy.Publisher('actuator_control/actuator_a', Bool, queue_size=10)
 		self.actuator_b_publisher = rospy.Publisher('actuator_control/actuator_b', Bool, queue_size=10)
-		self.roi_publisher = rospy.Publisher("~roi", PoseStamped, queue_size=5)
+		self.roi_publisher = rospy.Publisher("~/target_detection/roi", PoseStamped, queue_size=5)
 		# Save the input waypoints
 		self.waypoints = waypoints
 
@@ -74,9 +74,9 @@ class Guidance():
 			# Callback to save "current location" such that we can perform and return
 			# from a diversion to the correct location
 			# XXX: These topics could be hard-coded to avoid using a launch file
-			self.sub_pose = rospy.Subscriber("~pose", PoseStamped, self.callback_pose)
+			self.sub_pose = rospy.Subscriber("/mavros/vision_position/pose", PoseStamped, self.callback_pose)
 			# Subscriber to catch "ROI" diversion commands
-			self.sub_roi = rospy.Subscriber("~roi", PoseStamped, self.callback_inspect_roi)
+			self.sub_roi = rospy.Subscriber("~/target_detection/roi", PoseStamped, self.callback_inspect_roi)
 
 			# XXX: Could have a publisher to output our waypoint progress
 			# throughout the flight (should publish each time the waypoint
@@ -145,6 +145,7 @@ class Guidance():
 	def callback_pose(self, msg_in):
 		# Store the current position at all times so it can be accessed later
 		self.current_location = msg_in.pose.position
+		rospy.loginfo("Im working")
 
 
 	# This function will fire whenever a ROI pose message is sent
@@ -164,7 +165,7 @@ class Guidance():
 		# Set the "diversion waypoint" (at yaw zero)
 		dwp = [msg_in.pose.position.x, msg_in.pose.position.y, 0.65, 0.0]
 		# Set the "return waypoint" (at yaw zero)
-		rwp = [self.current_location.x, self.current_location.y, self.current_location.z, 0.0]
+		rwp = [self.current_location.x, self.current_location.y, flight_height, 0.0]
 
 		# XXX: Could pause here for a moment with ( "rospy.sleep(...)" ) to make sure the UAV stops correctly
 
@@ -294,6 +295,7 @@ class Guidance():
 					# XXX:	This could be used to restart the mission back to the
 					#		first waypoint instead to restart the mission
 					rospy.loginfo("Waypoint Mission complete!")
+					# self.send_wp(x,y,1,0)
 					self.send_landing_motion()
 					rospy.signal_shutdown("complete")
 			elif (self.spar_client.get_state() == GoalStatus.PREEMPTED) or (self.spar_client.get_state() == GoalStatus.ABORTED) or (self.spar_client.get_state() == GoalStatus.REJECTED):
