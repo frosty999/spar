@@ -265,19 +265,6 @@ class Guidance():
 					self.send_wp(self.waypoints[self.waypoint_counter])
 					# Increment our waypoint counter
 					self.waypoint_counter += 1
-					if self.waypoint_counter == 4:
-						roi = PoseStamped()
-						roi.header.seq = 1
-						roi.header.stamp = rospy.Time.now()
-						roi.header.frame_id = "bag"
-						roi.pose.position.x = 0.0
-						roi.pose.position.y = 0.0
-						roi.pose.position.z = 0.5
-						roi.pose.orientation.x = 0.0
-						roi.pose.orientation.y = 0.0
-						roi.pose.orientation.z = 0.0
-						roi.pose.orientation.w = 1.0
-						self.roi_publisher.publish(roi)
 				else:
 					# Else the mission is over, shutdown and quit the node
 					# XXX:	This could be used to restart the mission back to the
@@ -286,9 +273,11 @@ class Guidance():
 					rospy.loginfo("Now flying to safe landing position")
 					if len(self.arucos) < 1:
 						rospy.loginfo("Landing at origin as no safe landing position found")
-						self.send_wp([0,0,1,0])
+						self.send_wp([0.0,0.0,1.0,0.0])
+						self.spar_client.wait_for_result()
 					else: 
 						self.send_wp(self.arucos[0])
+						self.spar_client.wait_for_result()
 					self.send_landing_motion()
 					rospy.signal_shutdown("complete")
 			elif (self.spar_client.get_state() == GoalStatus.PREEMPTED) or (self.spar_client.get_state() == GoalStatus.ABORTED) or (self.spar_client.get_state() == GoalStatus.REJECTED):
