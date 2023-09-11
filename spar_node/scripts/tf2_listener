@@ -13,6 +13,8 @@ from geometry_msgs.msg import PoseStamped
 tfBuffer = None
 tfln = None
 pub_roi = None
+camera_name = "camera"
+target_name = "target"
 
 def callback_target_found(msg_in):
     # We recieved a "found" timestamp
