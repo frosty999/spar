@@ -175,6 +175,7 @@ catkin_install_python(PROGRAMS
   scripts/land
   scripts/ros_payload
   scripts/week8demo
+  scripts/week13demo
   scripts/tf2_broadcaster_frames
   scripts/tf2_broadcaster_target
   scripts/tf2_listener
