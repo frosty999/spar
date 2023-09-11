@@ -79,7 +79,7 @@ class Guidance():
 			# Subscriber to catch "ROI" diversion commands
 			self.sub_roi = rospy.Subscriber("~/target_detection/roi", PoseStamped, self.callback_inspect_roi)
 			# Subscriber to catch "Aruco" pose messages
-			self,sub_aruco = rospy.Subscriber("/aruco_single/pose", PoseStamped, self.callback_aruco)
+			self.sub_aruco = rospy.Subscriber("/aruco_single/pose", PoseStamped, self.callback_aruco)
 
 			# XXX: Could have a publisher to output our waypoint progress
 			# throughout the flight (should publish each time the waypoint
@@ -148,7 +148,6 @@ class Guidance():
 	def callback_pose(self, msg_in):
 		# Store the current position at all times so it can be accessed later
 		self.current_location = msg_in.pose.position
-		rospy.loginfo("Im working")
 
 
 	# This function will fire whenever a ROI pose message is sent
@@ -168,7 +167,7 @@ class Guidance():
 		# Set the "diversion waypoint" (at yaw zero)
 		dwp = [msg_in.pose.position.x, msg_in.pose.position.y, 0.65, 0.0]
 		# Set the "return waypoint" (at yaw zero)
-		rwp = [self.current_location.x, self.current_location.y, flight_height, 0.0]
+		rwp = [self.current_location.x, self.current_location.y, 2, 0.0]
 
 		# XXX: Could pause here for a moment with ( "rospy.sleep(...)" ) to make sure the UAV stops correctly
 
@@ -285,7 +284,11 @@ class Guidance():
 					#		first waypoint instead to restart the mission
 					rospy.loginfo("Waypoint Mission complete!")
 					rospy.loginfo("Now flying to safe landing position")
-					self.send_wp(self.arucos[0])
+					if len(self.arucos) < 1:
+						rospy.loginfo("Landing at origin as no safe landing position found")
+						self.send_wp([0,0,1,0])
+					else: 
+						self.send_wp(self.arucos[0])
 					self.send_landing_motion()
 					rospy.signal_shutdown("complete")
 			elif (self.spar_client.get_state() == GoalStatus.PREEMPTED) or (self.spar_client.get_state() == GoalStatus.ABORTED) or (self.spar_client.get_state() == GoalStatus.REJECTED):
@@ -387,8 +390,7 @@ def main(args):
 		   [ 4.0, 0.0, flight_height, 0.0],
 		   [ -4.0, 0.0, flight_height, 0.0],
 		   [ -4.0, 2.0, flight_height, 0.0],
-		   [ 4.0, 2.0, flight_height, 0.0],
-		   [ 0.0, 0.0, flight_height, 0.0]]
+		   [ 4.0, 2.0, flight_height, 0.0]]
 
 	# Create our guidance class option
 	guide = Guidance(wps)
