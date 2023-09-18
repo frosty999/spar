@@ -45,7 +45,7 @@ class Guidance():
 		# Make some space to record down our current location
 		self.current_location = Point()
 		# Set our linear and rotational velocities for the flight
-		self.vel_linear = rospy.get_param("~vel_linear", 1)
+		self.vel_linear = rospy.get_param("~vel_linear", 0.8)
 		self.vel_yaw = rospy.get_param("~vel_yaw", 0.2)
 		# Set our position and yaw waypoint accuracies
 		self.accuracy_pos = rospy.get_param("~acc_pos", 0.1)
@@ -167,7 +167,7 @@ class Guidance():
 		# Set the "diversion waypoint" (at yaw zero)
 		dwp = [msg_in.pose.position.x, msg_in.pose.position.y, 0.65, 0.0]
 		# Set the "return waypoint" (at yaw zero)
-		rwp = [self.current_location.x, self.current_location.y, 2, 0.0]
+		rwp = [self.current_location.x, self.current_location.y, self.current_location.z, 0.0]
 
 		# XXX: Could pause here for a moment with ( "rospy.sleep(...)" ) to make sure the UAV stops correctly
 
@@ -289,7 +289,7 @@ class Guidance():
 		goal = FlightMotionGoal()
 		goal.motion = FlightMotionGoal.MOTION_TAKEOFF
 		goal.position.z = rospy.get_param("~height", 1.0)			# Other position information is ignored
-		goal.velocity_vertical = rospy.get_param("~speed", 0.2)		# Other velocity information is ignored
+		goal.velocity_vertical = rospy.get_param("~speed", 0.3)		# Other velocity information is ignored
 		goal.wait_for_convergence = True							# Wait for our takeoff "waypoint" to be reached
 		goal.position_radius = rospy.get_param("~position_radius", 0.1)
 		goal.yaw_range = rospy.get_param("~yaw_range", 0.1)

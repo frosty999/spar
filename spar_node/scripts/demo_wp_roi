@@ -262,6 +262,19 @@ class Guidance():
 					self.send_wp(self.waypoints[self.waypoint_counter])
 					# Increment our waypoint counter
 					self.waypoint_counter += 1
+					if self.waypoint_counter == 4:
+						roi = PoseStamped()
+						roi.header.seq = 1
+						roi.header.stamp = rospy.Time.now()
+						roi.header.frame_id = "bag"
+						roi.pose.position.x = 0.0
+						roi.pose.position.y = 0.0
+						roi.pose.position.z = 0.5
+						roi.pose.orientation.x = 0.0
+						roi.pose.orientation.y = 0.0
+						roi.pose.orientation.z = 0.0
+						roi.pose.orientation.w = 1.0
+						self.roi_publisher.publish(roi)
 				else:
 					# Else the mission is over, shutdown and quit the node
 					# XXX:	This could be used to restart the mission back to the
