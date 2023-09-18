@@ -10,11 +10,11 @@ from geometry_msgs.msg import TransformStamped
 # Library to send PoseStamped to roi
 from geometry_msgs.msg import PoseStamped
 
+
 tfBuffer = None
 tfln = None
 pub_roi = None
-camera_name = "camera"
-target_name = "target"
+
 
 def callback_target_found(msg_in):
     # We recieved a "found" timestamp
@@ -22,6 +22,7 @@ def callback_target_found(msg_in):
     try:
         # Lookup transform from "map" to "target" at time "msg_in.data",
         # and allow for 0.5 seconds to collected any additionally needed data
+      
         t = tfBuffer.lookup_transform("map", "target", msg_in.data, rospy.Duration(0.5))
 
         # Dump information to screen

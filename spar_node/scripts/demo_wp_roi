@@ -44,7 +44,7 @@ class Guidance():
 		# Make some space to record down our current location
 		self.current_location = Point()
 		# Set our linear and rotational velocities for the flight
-		self.vel_linear = rospy.get_param("~vel_linear", 0.2)
+		self.vel_linear = rospy.get_param("~vel_linear", 1)
 		self.vel_yaw = rospy.get_param("~vel_yaw", 0.2)
 		# Set our position and yaw waypoint accuracies
 		self.accuracy_pos = rospy.get_param("~acc_pos", 0.1)
@@ -74,7 +74,7 @@ class Guidance():
 			# Callback to save "current location" such that we can perform and return
 			# from a diversion to the correct location
 			# XXX: These topics could be hard-coded to avoid using a launch file
-			self.sub_pose = rospy.Subscriber("~pose", PoseStamped, self.callback_pose)
+			self.sub_pose = rospy.Subscriber("/mavros/vision_position/pose", PoseStamped, self.callback_pose)
 			# Subscriber to catch "ROI" diversion commands
 			self.sub_roi = rospy.Subscriber("~roi", PoseStamped, self.callback_inspect_roi)
 
@@ -164,7 +164,7 @@ class Guidance():
 		# Set the "diversion waypoint" (at yaw zero)
 		dwp = [msg_in.pose.position.x, msg_in.pose.position.y, 0.5, 0.0]
 		# Set the "return waypoint" (at yaw zero)
-		rwp = [self.current_location.x, self.current_location.y, self.current_location.z, 0.0]
+		rwp = [self.current_location.x, self.current_location.y, 2, 0.0]
 
 		# XXX: Could pause here for a moment with ( "rospy.sleep(...)" ) to make sure the UAV stops correctly
 
@@ -262,33 +262,6 @@ class Guidance():
 					self.send_wp(self.waypoints[self.waypoint_counter])
 					# Increment our waypoint counter
 					self.waypoint_counter += 1
-					if self.waypoint_counter == 4:
-						roi = PoseStamped()
-						roi.header.seq = 1
-						roi.header.stamp = rospy.Time.now()
-						roi.header.frame_id = "bag"
-						roi.pose.position.x = 0.0
-						roi.pose.position.y = 0.0
-						roi.pose.position.z = 0.5
-						roi.pose.orientation.x = 0.0
-						roi.pose.orientation.y = 0.0
-						roi.pose.orientation.z = 0.0
-						roi.pose.orientation.w = 1.0
-						self.roi_publisher.publish(roi)
-
-					if self.waypoint_counter == 6:
-						roi = PoseStamped()
-						roi.header.seq = 1
-						roi.header.stamp = rospy.Time.now()
-						roi.header.frame_id = "Person"
-						roi.pose.position.x = 0.0
-						roi.pose.position.y = 0.0
-						roi.pose.position.z = 0.5
-						roi.pose.orientation.x = 0.0
-						roi.pose.orientation.y = 0.0
-						roi.pose.orientation.z = 0.0
-						roi.pose.orientation.w = 1.0
-						self.roi_publisher.publish(roi)
 				else:
 					# Else the mission is over, shutdown and quit the node
 					# XXX:	This could be used to restart the mission back to the

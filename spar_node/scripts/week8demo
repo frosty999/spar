@@ -376,10 +376,12 @@ def main(args):
 	wps = [[ -1.0, -1.0, flight_height, 0.0],
 		   [ -4.0, -2.0, flight_height, 0.0],
 		   [ 4.0, -2.0, flight_height, 0.0],
-		   [ 4.0, 0.0, flight_height, 0.0],
-		   [ -4.0, 0.0, flight_height, 0.0],
-		   [ -4.0, 2.0, flight_height, 0.0],
-		   [ 4.0, 2.0, flight_height, 0.0]]
+		   [4.0, -0.5, flight_height, 0.0],
+		   [-4.0, -0.5, flight_height, 0.0],
+		   [ -4.0, 1.0, flight_height, 0.0],
+		   [ 4.0, 1.0, flight_height, 0.0],
+		   [ 4.0, 2.0, flight_height, 0.0],
+		   [ -4.0, 2.0, flight_height, 0.0]]
 
 	# Create our guidance class option
 	guide = Guidance(wps)
