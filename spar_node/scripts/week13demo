@@ -13,6 +13,9 @@ from spar_msgs.msg import FlightMotionAction, FlightMotionGoal
 from std_msgs.msg import Bool
 from sensor_msgs.msg import BatteryState
 
+from breadcrumb.srv import RequestPath
+from breadcrumb.srv import RequestPathRequest
+
 # This is getting a bit more complicated now, so we'll put our information in
 # a class to keep track of all of our variables. This is not so much different
 # to the previous methods, other than the fact that the class will operate
@@ -63,6 +66,13 @@ class Guidance():
 		self.spar_client = actionlib.SimpleActionClient(action_ns, FlightMotionAction)
 		rospy.loginfo("Waiting for spar...")
 		self.spar_client.wait_for_server()
+
+		# Wait to connect with Breadcrumb
+		# Code will error if you try to connect to a service
+		# that does not exist
+		rospy.loginfo("Waiting for breadcrumb...")
+		rospy.wait_for_service('/breadcrumb/request_path')
+		self.srvc_bc = rospy.ServiceProxy('/breadcrumb/request_path', RequestPath)
 
 		if not rospy.is_shutdown():
 			# Good to go, start mission
@@ -254,12 +264,6 @@ class Guidance():
 		# If we're performing the ROI diversion, then don't do
 		# anything here, as this is handled in that function
 		if not self.performing_roi:
-			# If the last segment has succeeded.
-			# For more complex tasks, it might be necessary to also
-			# check if you are in waypoint or diversion mode here.
-			# Hint: really, we should check for other status states
-			#		(such as aborted), as there are some states
-			#		where we won't recover from, and should just exit
 			if self.spar_client.get_state() == GoalStatus.SUCCEEDED:
 				rospy.loginfo("Reached waypoint %i!" % (self.waypoint_counter))
 
@@ -269,6 +273,30 @@ class Guidance():
 				#		 an "elif" check instead.
 				#		 i.e. if complete; elif more wps; else wps finished)
 				if self.waypoint_counter < (len(self.waypoints)):
+					# Set up a path request for breadcrumb
+					req = RequestPathRequest()
+					req.start.x = self.waypoints[self.waypoint_counter-1][0]
+					req.start.y = self.waypoints[self.waypoint_counter-1][1]
+					req.start.z = self.waypoints[self.waypoint_counter-1][2]
+					req.end.x = self.waypoints[self.waypoint_counter][0]
+					req.end.y = self.waypoints[self.waypoint_counter][1]
+					req.end.z = self.waypoints[self.waypoint_counter][2]
+					rospy.loginfo("Finding path from [%0.2f;%0.2f;%0.2f] to [%0.2f;%0.2f;%0.2f]",
+					req.start.x, req.start.y,req.start.z, req.end.x, req.end.y, req.end.z)
+					res = self.srvc_bc(req)
+
+					# Breadcrumb will return a vector of poses if a solution was found
+					# If no solution was found (i.e. no solution, or request bad
+					# start/end), then breadcrumb returns and empty vector
+					if len(res.path.poses) > 0:
+						# Loop through the solution returned from breadcrumb
+						for i in range(len(res.path.poses) - 1):
+							rospy.loginfo("    [%0.2f;%0.2f;%0.2f]",
+							res.path.poses[i].position.x,
+							res.path.poses[i].position.y,
+							res.path.poses[i].position.z)
+					else:
+						rospy.loginfo("solution not found")
 					self.send_wp(self.waypoints[self.waypoint_counter])
 					# Increment our waypoint counter
 					self.waypoint_counter += 1
@@ -387,14 +415,15 @@ class Guidance():
 			else: 
 				self.send_wp(self.arucos[0])
 				self.spar_client.wait_for_result()
-				self.send_landing_motion()
-				rospy.signal_shutdown("Complete")
+			self.send_landing_motion()
+			rospy.signal_shutdown("Complete")
 
 
 
 def main(args):
 	#Set flight height
-	flight_height = 2.0
+	#flight_height = 2.0
+	flight_height = rospy.get_param("~flight_ht", 2.0)
 	
 	# Initialise ROS Node
 	rospy.init_node('guidance')
