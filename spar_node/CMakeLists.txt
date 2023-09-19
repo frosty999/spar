@@ -177,6 +177,7 @@ catkin_install_python(PROGRAMS
   scripts/week8demo
   scripts/week13demo
   scripts/week9demo
+  scripts/week13video
   scripts/tf2_broadcaster_frames
   scripts/tf2_broadcaster_target
   scripts/tf2_listener
