@@ -83,7 +83,7 @@ class Guidance():
 			# Callback to save "current location" such that we can perform and return
 			# from a diversion to the correct location
 			# XXX: These topics could be hard-coded to avoid using a launch file
-			self.sub_pose = rospy.Subscriber("/mavros/vision_position/pose", PoseStamped, self.callback_pose)
+			self.sub_pose = rospy.Subscriber("/mavros/local_position/pose", PoseStamped, self.callback_pose)
 			# Subscriber to catch "ROI" diversion commands
 			self.sub_roi = rospy.Subscriber("~/target_detection/roi", PoseStamped, self.callback_inspect_roi)
 			# Subscriber to catch "Aruco" pose messages
@@ -158,6 +158,7 @@ class Guidance():
 		self.current_location = msg_in.pose.position
 
 
+
 	# This function will fire whenever a ROI pose message is sent
 	# It is also responsible for handling the ROI "inspection task"
 	def callback_inspect_roi(self, msg_in):
@@ -173,7 +174,7 @@ class Guidance():
 		#		the pose to maintain that throughout a diversion
 
 		# Set the "diversion waypoint" (at yaw zero)
-		dwp = [msg_in.pose.position.x, msg_in.pose.position.y, 0.65, 0.0]
+		dwp = [msg_in.pose.position.x, msg_in.pose.position.y, 1.0, 0.0]
 		# Set the "return waypoint" (at yaw zero)
 		rwp = [self.current_location.x, self.current_location.y, self.current_location.z, 0.0]
 
@@ -273,6 +274,19 @@ class Guidance():
 					self.send_wp(self.waypoints[self.waypoint_counter])
 					# Increment our waypoint counter
 					self.waypoint_counter += 1
+					if self.waypoint_counter == 4:
+						roi = PoseStamped()
+						roi.header.seq = 1
+						roi.header.stamp = rospy.Time.now()
+						roi.header.frame_id = "bag"
+						roi.pose.position.x = 0.0
+						roi.pose.position.y = 0.0
+						roi.pose.position.z = 0.5
+						roi.pose.orientation.x = 0.0
+						roi.pose.orientation.y = 0.0
+						roi.pose.orientation.z = 0.0
+						roi.pose.orientation.w = 1.0
+						self.roi_publisher.publish(roi)
 				else:
 					# Else the mission is over, shutdown and quit the node
 					# XXX:	This could be used to restart the mission back to the
@@ -299,7 +313,7 @@ class Guidance():
 		goal.position.z = rospy.get_param("~height", 1.0)			# Other position information is ignored
 		goal.velocity_vertical = rospy.get_param("~speed", 0.3)		# Other velocity information is ignored
 		goal.wait_for_convergence = True							# Wait for our takeoff "waypoint" to be reached
-		goal.position_radius = rospy.get_param("~position_radius", 0.1)
+		goal.position_radius = rospy.get_param("~position_radius", 0.3)
 		goal.yaw_range = rospy.get_param("~yaw_range", 0.1)
 
 		# Send the goal
@@ -378,18 +392,21 @@ class Guidance():
 			rospy.loginfo("Warning: Battery less than 50%!")
 			self.warned50 = True
 		
-		if self.battery_per < 0.2 and self.warnedCritical == False:
+		if self.battery_per < 0.25 and self.warnedCritical == False:
 			rospy.loginfo("Critical Warning: Battery less than 20%! Starting landing procedure!")
 			self.warnedCritical = True
+			self.performing_roi = True
 			if len(self.arucos) < 1:
 				rospy.loginfo("Landing at origin as no safe landing position found")
 				self.send_wp([0.0,0.0,1.0,0.0])
 				self.spar_client.wait_for_result()
+				self.send_landing_motion()
+				rospy.signal_shutdown("Complete")
 			else: 
 				self.send_wp(self.arucos[0])
 				self.spar_client.wait_for_result()
-			self.send_landing_motion()
-			rospy.signal_shutdown("Complete")
+				self.send_landing_motion()
+				rospy.signal_shutdown("Complete")
 
 
 
