@@ -38,7 +38,8 @@ class Guidance():
 		# This will stop our "waypoint is reached" callback from firing
 		# during the roi diversion and taking over our flight!
 		self.performing_roi = False
-
+		self.found_bag = False
+		self.found_person = False
 		# Initialize publishers
 		self.actuator_a_publisher = rospy.Publisher('actuator_control/actuator_a', Bool, queue_size=10)
 		self.actuator_b_publisher = rospy.Publisher('actuator_control/actuator_b', Bool, queue_size=10)
@@ -99,9 +100,9 @@ class Guidance():
 			# XXX: These topics could be hard-coded to avoid using a launch file
 			self.sub_pose = rospy.Subscriber("/mavros/local_position/pose", PoseStamped, self.callback_pose)
 			# Subscriber to catch "ROI" diversion commands
-			self.sub_roi = rospy.Subscriber("~/target_detection/roi", PoseStamped, self.callback_inspect_roi)
+			#self.sub_roi = rospy.Subscriber("~/target_detection/roi", PoseStamped, self.callback_inspect_roi)
 			# Subscriber to catch "Aruco" pose messages
-			self.sub_aruco = rospy.Subscriber("/aruco_single/pose", PoseStamped, self.callback_aruco)
+			self.sub_aruco = rospy.Subscriber("~/aruco/pose", PoseStamped, self.callback_aruco)
 
 			# XXX: Could have a publisher to output our waypoint progress
 			# throughout the flight (should publish each time the waypoint
@@ -175,6 +176,20 @@ class Guidance():
 	# This function will fire whenever a ROI pose message is sent
 	# It is also responsible for handling the ROI "inspection task"
 	def callback_inspect_roi(self, msg_in):
+		#Only perform if ROI hasn't been performed yet
+
+		#Check if requested ROI has been done yet. If has, ignore.
+		if(msg_in.header.frame_id == "Backpack"):
+			if(self.found_bag == True):
+				return
+			else:
+				self.found_bag = True
+		elif(msg_in.header.frame_id == "Person"):
+			if(self.found_person == True):
+				return
+			else:
+				self.found_person = True
+
 		# Set our flag that we are performing the diversion
 		self.performing_roi = True
 
@@ -206,10 +221,11 @@ class Guidance():
 		rospy.sleep(rospy.Duration(5))
 		if(msg_in.header.frame_id == "bag"):
 			self.actuator_a_publisher.publish(Bool(True))
-			rospy.loginfo("Epipen Payload dropped!")
+			rospy.loginfo("Tracker Payload dropped!")
+		#elif(msg_in.header.frame_id == "person"):
 		else:
 			self.actuator_b_publisher.publish(Bool(True))
-			rospy.loginfo("Tracker Payload dropped!")
+			rospy.loginfo("Epipen Payload dropped!")
 
 		rospy.sleep(rospy.Duration(5))
 
@@ -343,6 +359,7 @@ class Guidance():
 						self.send_wp([0.0,0.0,1.0,0.0])
 						self.spar_client.wait_for_result()
 					else: 
+						rospy.loginfo("Landing at the first aruco that was found")
 						self.send_wp(self.arucos[0])
 						self.spar_client.wait_for_result()
 					self.send_landing_motion()
@@ -451,7 +468,7 @@ class Guidance():
 					rospy.logerr("Error: An unknown goal status was recieved")
 	
 	def callback_aruco(self, msg_in):
-		self.arucos.push([msg_in.pose.position.x, msg_in.pose.position.y, 1, 0.0])
+		self.arucos.append([msg_in.pose.position.x, msg_in.pose.position.y, 1, 0.0])
 		rospy.loginfo("Aruco detected at %f, %f" % (msg_in.pose.position.x, msg_in.pose.position.y))
 
 	def callback_battery(self, msg_in):
@@ -464,6 +481,7 @@ class Guidance():
 			rospy.loginfo("Critical Warning: Battery less than 20%! Starting landing procedure!")
 			self.warnedCritical = True
 			self.performing_roi = True
+			self.timer.shutdown()
 			if len(self.arucos) < 1:
 				rospy.loginfo("Landing at origin as no safe landing position found")
 				self.send_wp([0.0,0.0,1.0,0.0])
@@ -480,25 +498,30 @@ class Guidance():
 
 def main(args):
 	#Set flight height
-	flight_height = rospy.get_param("~flight_ht", 2.0)
+	flight_height = rospy.get_param("~flight_ht", 3.0)
 	
 	# Initialise ROS Node
 	rospy.init_node('guidance')
 
 	# List of waypoints
 	# [X, Y, Z, Yaw]
-	wps = [[ -1.0, -1.0, flight_height, 0.0],
-			[-3.0, -1.0, flight_height, 0.0],
-			[-3.0, -2.0, flight_height, 0.0],
-			[3.0, -2.0, flight_height, 0.0],
+	wps = [[ -0.0, -0.0, flight_height, 0.0], #Vertical Search pattern
+			[-3.0, -0.0, flight_height, 0.0],
+			[-3.0, -2.5, flight_height, 0.0],
+			[3.0, -2.5, flight_height, 0.0],
 			[3.0, 0.0, flight_height, 0.0],
 		   [ -3.0, 0.0, flight_height, 0.0],
 		   [-3.0, 1.0, flight_height, 0.0],
 		   [3.0, 1.0, flight_height, 0.0],
 		   [ 3.0, 2.0, flight_height, 0.0],
-		   [ -3.0, 2.0, flight_height, 0.0],
-		   [ -3.0, 3.0, flight_height, 0.0],
-		   [3.0, 3.0, flight_height, 0.0]]
+		   [ -3.0, 2.0, flight_height, 0.0], #First Search sweep done at bottom left
+		   [ -3.0, -2.5, flight_height, 0.0], #Horizontal search pattern
+		   [-1.0, -2.5, flight_height, 0.0],
+		   [-1.0, 2.0, flight_height, 0.0],
+		   [1.0, 2.0, flight_height, 0.0],
+		   [1.0, -2.5, flight_height, 0.0],
+		   [3.0, -2.5, flight_height, 0.0],
+		   [3.0, 2.0, flight_height, 0.0]] #Second search sweep finished at top left corner
 	
 	# can only go between (3, 2?)
 	#doesnt perform on first way point
