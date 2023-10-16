@@ -43,7 +43,6 @@ class Guidance():
 		# Initialize publishers
 		self.actuator_a_publisher = rospy.Publisher('actuator_control/actuator_a', Bool, queue_size=10)
 		self.actuator_b_publisher = rospy.Publisher('actuator_control/actuator_b', Bool, queue_size=10)
-		self.roi_publisher = rospy.Publisher("~/target_detection/roi", PoseStamped, queue_size=5)
 		# Save the input waypoints
 		self.waypoints = waypoints
 		#save the arucos
@@ -51,7 +50,7 @@ class Guidance():
 		# Make some space to record down our current location
 		self.current_location = Point()
 		# Set our linear and rotational velocities for the flight
-		self.vel_linear = rospy.get_param("~vel_linear", 1.0)
+		self.vel_linear = rospy.get_param("~vel_linear", 0.5)
 		self.vel_yaw = rospy.get_param("~vel_yaw", 0.2)
 		# Set our position and yaw waypoint accuracies
 		self.accuracy_pos = rospy.get_param("~acc_pos", 0.3)
@@ -100,6 +99,7 @@ class Guidance():
 			# XXX: These topics could be hard-coded to avoid using a launch file
 			self.sub_pose = rospy.Subscriber("/mavros/local_position/pose", PoseStamped, self.callback_pose)
 			# Subscriber to catch "ROI" diversion commands
+			self.sub_roi = rospy.Subscriber("~/target_detection/roi", PoseStamped, self.callback_inspect_roi)
 			#self.sub_roi = rospy.Subscriber("~/target_detection/roi", PoseStamped, self.callback_inspect_roi)
 			# Subscriber to catch "Aruco" pose messages
 			self.sub_aruco = rospy.Subscriber("~/aruco/pose", PoseStamped, self.callback_aruco)
@@ -184,16 +184,16 @@ class Guidance():
 				return
 			else:
 				self.found_bag = True
+				rospy.loginfo("Starting diversion to Backpack target...")
 		elif(msg_in.header.frame_id == "Person"):
 			if(self.found_person == True):
 				return
 			else:
 				self.found_person = True
-
+				rospy.loginfo("Starting diversion to Person target...")
+			
 		# Set our flag that we are performing the diversion
 		self.performing_roi = True
-
-		rospy.loginfo("Starting diversion to ROI...")
 		# Cancel the current goal (if there is one)
 		self.spar_client.cancel_goal()
 		# Record our current location so we can return to it later
@@ -202,7 +202,7 @@ class Guidance():
 		#		the pose to maintain that throughout a diversion
 
 		# Set the "diversion waypoint" (at yaw zero)
-		dwp = [msg_in.pose.position.x, msg_in.pose.position.y, 1.0, 0.0]
+		dwp = [msg_in.pose.position.x, msg_in.pose.position.y, 0.8, 0.0]
 		# Set the "return waypoint" (at yaw zero)
 		rwp = [self.current_location.x, self.current_location.y, self.current_location.z, 0.0]
 
@@ -219,12 +219,11 @@ class Guidance():
 		# Code to release payload.
 		rospy.loginfo("Hover for payload drop!")
 		rospy.sleep(rospy.Duration(5))
-		if(msg_in.header.frame_id == "bag"):
+		if(msg_in.header.frame_id == "Backpack"): # If the target is the backpack, drop tracker
 			self.actuator_a_publisher.publish(Bool(True))
 			rospy.loginfo("Tracker Payload dropped!")
-		#elif(msg_in.header.frame_id == "person"):
-		else:
-			self.actuator_b_publisher.publish(Bool(True))
+		elif(msg_in.header.frame_id == "Person"):
+			self.actuator_b_publisher.publish(Bool(True)) # If the target is the backpack, drop tracker
 			rospy.loginfo("Epipen Payload dropped!")
 
 		rospy.sleep(rospy.Duration(5))
@@ -285,6 +284,19 @@ class Guidance():
 		# If we're performing the ROI diversion, then don't do
 		# anything here, as this is handled in that function
 		if not self.performing_roi:
+			# Finish mission if backpack, person and safe landing zone have been identified
+			if self.found_bag == True and self.found_person == True and len(self.arucos) >= 1:
+				#Stop search pattern and start landing
+				rospy.loginfo("All targets identified, landing at designated safe landing zone!")
+				self.performing_roi = True
+				self.timer.shutdown()
+				self.sub_roi.unregister()
+				rospy.sleep(rospy.Duration(3))
+				self.send_wp(self.arucos[0]) #Land at the first aruco that was identified
+				self.spar_client.wait_for_result()
+				self.send_landing_motion()
+				rospy.signal_shutdown("Complete")
+				
 			if self.spar_client.get_state() == GoalStatus.SUCCEEDED:
 				rospy.loginfo("Reached waypoint %i!" % (self.waypoint_counter))
 
@@ -354,12 +366,13 @@ class Guidance():
 					#		first waypoint instead to restart the mission
 					rospy.loginfo("Waypoint Mission complete!")
 					rospy.loginfo("Now flying to safe landing position")
+					self.sub_roi.unregister()
 					if len(self.arucos) < 1:
 						rospy.loginfo("Landing at origin as no safe landing position found")
 						self.send_wp([0.0,0.0,1.0,0.0])
 						self.spar_client.wait_for_result()
 					else: 
-						rospy.loginfo("Landing at the first aruco that was found")
+						rospy.loginfo("Landing at designated safe landing zone")
 						self.send_wp(self.arucos[0])
 						self.spar_client.wait_for_result()
 					self.send_landing_motion()
@@ -468,28 +481,31 @@ class Guidance():
 					rospy.logerr("Error: An unknown goal status was recieved")
 	
 	def callback_aruco(self, msg_in):
-		self.arucos.append([msg_in.pose.position.x, msg_in.pose.position.y, 1, 0.0])
-		rospy.loginfo("Aruco detected at %f, %f" % (msg_in.pose.position.x, msg_in.pose.position.y))
+		self.arucos.append([msg_in.pose.position.x, msg_in.pose.position.y, 1, 0.0]) #Save location of aruco
+		rospy.loginfo("Aruco detected and saved at %f, %f" % (msg_in.pose.position.x, msg_in.pose.position.y))
 
 	def callback_battery(self, msg_in):
 		self.battery_per = msg_in.percentage
-		if self.battery_per < 0.5 and self.warned50 == False:
+		if self.battery_per < 0.5 and self.warned50 == False: #Give warning under 50%
 			rospy.loginfo("Warning: Battery less than 50%!")
 			self.warned50 = True
 		
-		if self.battery_per < 0.2 and self.warnedCritical == False:
+		if self.battery_per < 0.2 and self.warnedCritical == False: #Start safe landing under 20%
 			rospy.loginfo("Critical Warning: Battery less than 20%! Starting landing procedure!")
+			self.sub_roi.unregister()
 			self.warnedCritical = True
 			self.performing_roi = True
 			self.timer.shutdown()
-			if len(self.arucos) < 1:
+			rospy.sleep(rospy.Duration(3))
+			if len(self.arucos) < 1: # If the UAV hasn't identified a safe landing position
 				rospy.loginfo("Landing at origin as no safe landing position found")
 				self.send_wp([0.0,0.0,1.0,0.0])
 				self.spar_client.wait_for_result()
 				self.send_landing_motion()
 				rospy.signal_shutdown("Complete")
-			else: 
-				self.send_wp(self.arucos[0])
+			else:  # If the UAV has identified a safe landing position
+				rospy.loginfo("Landing at designated safe landing zone")
+				self.send_wp(self.arucos[0]) #Land at the first aruco that was identified
 				self.spar_client.wait_for_result()
 				self.send_landing_motion()
 				rospy.signal_shutdown("Complete")
@@ -498,7 +514,7 @@ class Guidance():
 
 def main(args):
 	#Set flight height
-	flight_height = rospy.get_param("~flight_ht", 3.0)
+	flight_height = rospy.get_param("~flight_ht", 2.0)
 	
 	# Initialise ROS Node
 	rospy.init_node('guidance')
@@ -521,11 +537,25 @@ def main(args):
 		   [1.0, 2.0, flight_height, 0.0],
 		   [1.0, -2.5, flight_height, 0.0],
 		   [3.0, -2.5, flight_height, 0.0],
+		   [3.0, 2.0, flight_height, 0.0], #Second search sweep finished at top left corner
+		   [ -0.0, -0.0, flight_height, 0.0], #Vertical Search pattern
+			[-3.0, -0.0, flight_height, 0.0],
+			[-3.0, -2.5, flight_height, 0.0],
+			[3.0, -2.5, flight_height, 0.0],
+			[3.0, 0.0, flight_height, 0.0],
+		   [ -3.0, 0.0, flight_height, 0.0],
+		   [-3.0, 1.0, flight_height, 0.0],
+		   [3.0, 1.0, flight_height, 0.0],
+		   [ 3.0, 2.0, flight_height, 0.0],
+		   [ -3.0, 2.0, flight_height, 0.0], #First Search sweep done at bottom left
+		   [ -3.0, -2.5, flight_height, 0.0], #Horizontal search pattern
+		   [-1.0, -2.5, flight_height, 0.0],
+		   [-1.0, 2.0, flight_height, 0.0],
+		   [1.0, 2.0, flight_height, 0.0],
+		   [1.0, -2.5, flight_height, 0.0],
+		   [3.0, -2.5, flight_height, 0.0],
 		   [3.0, 2.0, flight_height, 0.0]] #Second search sweep finished at top left corner
-	
-	# can only go between (3, 2?)
-	#doesnt perform on first way point
-	#publishes previous way point in subway point
+
 	# Create our guidance class option
 	guide = Guidance(wps)
 

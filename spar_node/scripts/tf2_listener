@@ -16,25 +16,56 @@ tfln = None
 pub_roi = None
 pub_aruco = None
 
-def callback_target_found(msg_in):
+def callback_backpack_found(msg_in):
     # We recieved a "found" timestamp
     # attempt to find the transformation
     try:
         # Lookup transform from "map" to "target" at time "msg_in.data",
         # and allow for 2 seconds to collected any additionally needed data
-      
         t = tfBuffer.lookup_transform("map", "Backpack", rospy.Time(0), rospy.Duration(2))
+                # Dump information to screen
+        rospy.loginfo("Found Backpack at the following location in the world:")
 
-        # Dump information to screen
-        rospy.loginfo("Found target at the following location in the world:")
-
-        # This is the infromation that we want for the ROI.
+                # This is the infromation that we want for the ROI.
         rospy.loginfo("[x: %0.2f; y: %0.2f; z: %0.2f]" % (t.transform.translation.x,
-                            t.transform.translation.y,
-                            t.transform.translation.z))
-
+        t.transform.translation.y,
+        t.transform.translation.z))
+        #msg_in.header.frame_id == 'Backpack'
         rospy.loginfo("Sending ROI to target found coordinates...")
         pose = PoseStamped()
+        pose.header.frame_id = "Backpack"
+        pose.pose.position.x = t.transform.translation.x
+        pose.pose.position.y = t.transform.translation.y
+        pose.pose.position.z = t.transform.translation.z
+        pose.pose.orientation.w = 1.0
+        pose.pose.orientation.x = 0.0
+        pose.pose.orientation.y = 0.0
+        pose.pose.orientation.z = 1.0
+        pub_roi.publish(pose)
+        rospy.loginfo("Coordinates of Backpack sent.")
+        
+    except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as e:
+        rospy.logwarn(e)
+
+
+def callback_person_found(msg_in):
+    # We recieved a "found" timestamp
+    # attempt to find the transformation
+    try:
+
+        t = tfBuffer.lookup_transform("map", "Person", rospy.Time(0), rospy.Duration(2))
+
+         # Dump information to screen
+        rospy.loginfo("Found Person at the following location in the world:")
+
+         # This is the infromation that we want for the ROI.
+        rospy.loginfo("[x: %0.2f; y: %0.2f; z: %0.2f]" % (t.transform.translation.x,
+        t.transform.translation.y,
+        t.transform.translation.z))
+        #msg_in.header.frame_id == 'Person'
+        rospy.loginfo("Sending ROI to target found coordinates...")
+        pose = PoseStamped()
+        pose.header.frame_id = "Person"
         pose.pose.position.x = t.transform.translation.x
         pose.pose.position.y = t.transform.translation.y
         pose.pose.position.z = t.transform.translation.z
@@ -43,7 +74,7 @@ def callback_target_found(msg_in):
         pose.pose.orientation.y = 0.0
         pose.pose.orientation.z = 0.0
         pub_roi.publish(pose)
-        rospy.loginfo("ROI coordinates sent.")
+        rospy.loginfo("Coordinates of Person sent.")
         
     except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as e:
         rospy.logwarn(e)
@@ -84,8 +115,8 @@ if __name__ == '__main__':
     rospy.init_node('tf2_listener')
 
     # Setup timestamp subscriber for "target found" at a specific timestamp
-    sub_target_found_Backpack = rospy.Subscriber('/UAVTeam3/target_found_Backpack', Time, callback_target_found)
-    sub_target_found_Person = rospy.Subscriber('/UAVTeam3/target_found_Person', Time, callback_target_found)
+    sub_target_found_Backpack = rospy.Subscriber('/UAVTeam3/target_found_Backpack', Time, callback_backpack_found)
+    sub_target_found_Person = rospy.Subscriber('/UAVTeam3/target_found_Person', Time, callback_person_found)
 
     # Setup timestamp subscriber for "target found" at a specific timestamp
     sub_aruco_found = rospy.Subscriber('/UAVTeam3/Aruco', Time, callback_aruco_found)
